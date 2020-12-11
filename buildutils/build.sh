@@ -2,7 +2,7 @@ export PREFIX="$PWD/cross"
 export TARGET=i686-elf
 export PATH="$PREFIX/bin:$PATH"
 
-REQUIRED_PKG="wget build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo"
+REQUIRED_PKG="wget build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo nasm"
 
 BUVER="2.35"
 GCCVER="10.2.0"
