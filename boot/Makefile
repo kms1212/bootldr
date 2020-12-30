@@ -10,13 +10,14 @@ FATIMG =	src/fat.img
 
 FILES = \
 	tmp/* \
+	$(FATIMG) \
 	$(TARGET)
 
 all : $(FATIMG) $(TARGET)
 
 $(FATIMG) : 
-	dd if=/dev/zero of=./fat.img bs=1024 count=102400
-	mkfs.fat -F 32 fat.img
+	dd if=/dev/zero of=$(FATIMG) bs=1024 count=102400
+	mkfs.fat -F 32 $(FATIMG)
 
 $(TARGET) : $(S1BOOTLDRBIN) $(S2BOOTLDRBIN) $(S2LOADLDRBIN)
 	../buildutils/bsmerge/bsmerge $@ $(S1BOOTLDRBIN) 0 $(FATIMG)
