@@ -1,2 +1,3 @@
-all : 
-	gcc main.c -o bsmerge
+all :
+	mkdir -p ../utils
+	gcc main.c -o ../utils/bsmerge

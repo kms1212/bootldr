@@ -73,7 +73,7 @@ PROTMODE:
 	call PRINT32
 	add esp, 12
 
-	jmp $
+	jmp dword 0x08:0x8000
 
 PRINT32:
 	pushad
@@ -146,3 +146,5 @@ GDT:
 		DB 0xCF
 		DB 0x00
 GDTEND:
+
+times 512 - ($ - $$) db 0x0

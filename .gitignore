@@ -1,5 +1,7 @@
 buildutils/cross
+buildutils/utils
 *.bin
 *.img
 *.o
 *.a
+

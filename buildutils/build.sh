@@ -61,14 +61,14 @@ $MAKE
 $MAKE install
 cd $SH_HOME
 
-# Building binutils for i386-elf
+# Building binutils for x86_64-elf
 
-echo "Building binutils for target system i386-elf : "
+echo "Building binutils for target system x86_64-elf : "
 
 rm -rf binutils-build
 mkdir binutils-build
 cd binutils-build
-../binutils/configure --target=i386-elf --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
+../binutils/configure --target=x86_64-elf --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
 
 $MAKE
 $MAKE install
@@ -89,14 +89,14 @@ $MAKE install-gcc
 $MAKE install-target-libgcc
 cd $SH_HOME
 
-# Building GCC i386-elf
+# Building GCC x86_64-elf
 
-echo "Building GCC for target system i386-elf : "
+echo "Building GCC for target system x86_64-elf : "
 
 rm -rf gcc-build
 mkdir gcc-build
 cd gcc-build
-../gcc/configure --target=i386-elf --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers
+../gcc/configure --target=x86_64-elf --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers
 
 $MAKE all-gcc
 $MAKE all-target-libgcc
