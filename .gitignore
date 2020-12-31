@@ -1,5 +1,6 @@
 buildutils/cross
 buildutils/utils
+*.elf
 *.bin
 *.img
 *.o
