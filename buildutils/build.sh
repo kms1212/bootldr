@@ -2,7 +2,6 @@ export PREFIX="$PWD/cross"
 export TARGET=i686-elf
 export PATH="$PREFIX/bin:$PATH"
 
-REQUIRED_PKG="wget build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo nasm mtools"
 BUVER="2.35"
 GCCVER="10.2.0"
 
@@ -10,11 +9,22 @@ SH_HOME="$PWD"
 
 cd $SH_HOME
 
-
 # Configuring packages for building
 
-sudo apt-get --yes install $REQUIRED_PKG
-
+if [ "$OSTYPE" == "linux-gnu"* ]; then
+	REQUIRED_PKG="wget build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo nasm mtools"
+	CC="gcc"
+	MAKE="make"
+	apt-get --yes install $REQUIRED_PKG
+elif [ "$OSTYPE" == "FreeBSD" ]; then
+	REQUIRED_PKG="wget binutils bzip2 gcc gmake bison flex gmp mpc mpfr texinfo nasm mtools"
+	CC="gcc"
+	MAKE="gmake"
+	pkg install -y $REQUIRED_PKG
+else
+	echo "Unknown OS Type";
+	exit 1
+fi
 
 # Downloading src files for building cross-compiler
 
@@ -38,30 +48,67 @@ mv "binutils-$BUVER" "binutils"
 mv "gcc-$GCCVER" "gcc"
 
 
-# Building binutils
+# Building binutils i686-elf
 
-echo "Building binutils : "
+echo "Building binutils for target system i686-elf : "
 
 rm -rf binutils-build
 mkdir binutils-build
 cd binutils-build
-../binutils/configure --target=$TARGET --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
+../binutils/configure --target=i686-elf --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
 
-make
-make install
+$MAKE
+$MAKE install
 cd $SH_HOME
 
-# Building GCC
+# Building binutils for i386-elf
 
-echo "Building GCC : "
+echo "Building binutils for target system i386-elf : "
+
+rm -rf binutils-build
+mkdir binutils-build
+cd binutils-build
+../binutils/configure --target=i386-elf --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
+
+$MAKE
+$MAKE install
+cd $SH_HOME
+
+# Building GCC i686-elf
+
+echo "Building GCC for target system i686-elf : "
 
 rm -rf gcc-build
 mkdir gcc-build
 cd gcc-build
-../gcc/configure --target=$TARGET --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers
+../gcc/configure --target=i686-elf --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers
 
-make all-gcc
-make all-target-libgcc
-make install-gcc
-make install-target-libgcc
+$MAKE all-gcc
+$MAKE all-target-libgcc
+$MAKE install-gcc
+$MAKE install-target-libgcc
 cd $SH_HOME
+
+# Building GCC i386-elf
+
+echo "Building GCC for target system i386-elf : "
+
+rm -rf gcc-build
+mkdir gcc-build
+cd gcc-build
+../gcc/configure --target=i386-elf --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers
+
+$MAKE all-gcc
+$MAKE all-target-libgcc
+$MAKE install-gcc
+$MAKE install-target-libgcc
+cd $SH_HOME
+
+# Cleaning Files
+
+rm -rf binutils
+rm -rf gcc
+rm -rf binutils-build
+rm -rf gcc-build
+rm -rf "binutils-$BUVER.tar.gz"
+rm -rf "gcc-$GCCVER.tar.gz"

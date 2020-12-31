@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
 		{		
 			if (destbuf[i] == '_')
 			{
-				if (strcmp(destbuf + i, "__ext~") == 0)
+				if (strncmp(destbuf + i, "__ext~", 6) == 0)
 				{
 					isMergeState = 1;
 					destbuf[i + 5] = 0;

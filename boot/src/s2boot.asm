@@ -5,61 +5,144 @@
 
 VMEMADDR	equ	0xB800
 
-jmp 0x0060:_ENTRY
+ENTRY:
 
-_ENTRY:
-	push cs
-	pop ds
-	
-	mov si, Stage2
-	call PrintString
- 
-	mov si, DAPACK		; address of "disk address packet"
-	mov ah, 0x42		; AL is unused
-	
-	int 0x13
-	
-	mov si, msg2
-	call PrintString
-	
-	jc short .error
+jmp 0x07E0:START
 
-	jmp 0x07C0:0000
+START:
+	mov ax, 0x07E0
+	mov ds, ax
+	mov es, ax
+	mov si, stringStage2
+	call PRINT
 	
-.error:
-	mov si, String
-	call PrintString
+	call CLEAR
 	
-PrintString:
+	cli
+	lgdt [GDTR]
+
+	mov eax, 0x4000003B
+	mov cr0, eax
+
+	jmp dword 0x08:(PROTMODE - $$ + 0x7E00)
+CLEAR:
 	pusha
-	mov ah, 0x0E
-	mov bh, 0x00
-.loop:
-	lodsb
-	cmp al, 0x00
-	je .loopend
+
+	mov ah, 0x01
+	mov ch, 0x3F
 	int 0x10
-	jmp .loop
-.loopend :
+
+	mov ah, 0x06
+	mov bh, 0x07
+	xor cx, cx
+	mov dx, 0x184F
+	int 0x10
+	
 	popa
 	ret
+PRINT:
+	pusha
+.NEXT:
+	lodsb
+	or al, al
+	jz .END
+
+	mov ah, 0x0E
+	xor bx, bx
+	int 0x10
+	jmp .NEXT
+.END:
+	popa
+	ret
+
+[BITS 32]
+PROTMODE:
+	mov ax, 0x10
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+
+	mov ss, ax
+	mov esp, 0xFFFE
+	mov ebp, 0xFFFE
 	
-[SECTION .data]
+	mov ebx, (stringProtModeSuccess - $$ + 0x7E00)
+	mov ah, 0x00
+	mov al, 0x00
+	call PRINT32
+	add esp, 12
 
-String : db 'Error reading drive.', 0xA, 0xD, 0
-Stage2 : db 'Stage 2', 0xA, 0xD, 0
-msg1 : db 'pre-int', 0xA, 0xD, 0
-msg2 : db 'post-int', 0xA, 0xD, 0
+	jmp $
 
+PRINT32:
+	pushad
 
-DAPACK:
-	db	0x10
-	db	0
-blkcnt:	
-	dw	16		; int 13 resets this to # of blocks actually read/written
-db_add:	
-	dw	0x7C00		; memory buffer destination address (0:7c00)
-	dw	0		; in memory page zero
-d_lba:	
-	dd	8		; put the lba to read in this spot
-	dd	0		; more storage bytes only for big lba's ( > 4 bytes )
+	push ebx
+	
+	xor bx, bx
+	mov bl, al
+	push bx
+
+	xor bx, bx
+	mov bl, ah
+	push bx
+	
+	xor eax, eax
+	pop ax
+	mov esi, 0xA0
+	mul esi
+	mov edi, eax
+
+	xor eax, eax
+	pop ax
+	mov esi, 2
+	mul esi
+	add edi, eax
+	
+	pop esi
+.NEXT:
+	mov cl, byte [esi]
+	cmp cl, 0
+	je .END
+
+	mov byte [edi + 0xB8000], cl
+	add esi, 1
+	add edi, 2
+
+	jmp .NEXT
+.END:
+	popad
+	ret
+
+stringStage2 : db 'Stage 2', 0x0D, 0x0A, 0x00
+stringProtModeSuccess : db 'Successfully switched to protected mode', 0x00
+
+ALIGN 8, DB 0
+DW 0x0000
+GDTR:
+	DW GDTEND - GDT - 1
+	DD (GDT - $$ + 0x7E00)
+GDT:
+	NULLDESC:
+		DW 0x0000
+		DW 0x0000
+		DB 0x00
+		DB 0x00
+		DB 0x00
+		DB 0x00
+	CODEDESC:
+		DW 0xFFFF
+		DW 0x0000
+		DB 0x00
+		DB 0x9A
+		DB 0xCF
+		DB 0x00
+	DATADESC:
+		DW 0xFFFF
+		DW 0x0000
+		DB 0x00
+		DB 0x92
+		DB 0xCF
+		DB 0x00
+GDTEND:
