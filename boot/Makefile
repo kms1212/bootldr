@@ -1,14 +1,23 @@
 TARGET =	bootpart.img
 BINPATH =	../buildutils/cross/bin/
 
-ASM = 		nasm
-ASMFLAG = 	-I${CURDIR}/src 
+AS = 		nasm
+ASFLAG = 	-I${CURDIR}/src 
 CC = 		$(BINPATH)/i686-elf-gcc
 CCFLAG = 	-c -m32 -ffreestanding
 LD =		$(BINPATH)/i686-elf-ld
-LDFLAG = 	-melf_i386 -T$(CURDIR)/i686-elf.x -nostdlib -e main -Ttext 0x8000
+LDFLAG = 	-melf_i386 -T$(CURDIR)/ldscripts/i686-elf.x -nostdlib -e main -Ttext 0x8000
 OBJCOPY = 	$(BINPATH)/i686-elf-objcopy 
 OBJCOPYFLAG = 	-j .text -j .data -j .rodata -j .bss -S -O binary
+
+ASFLAG64 = 	    -I${CURDIR}/src/64bit
+CC64 = 			$(BINPATH)/x86_64-elf-gcc
+CCFLAG64 = 		-c -m64 -ffreestanding
+LD64 =			$(BINPATH)/x86_64-elf-ld
+LDFLAG64 = 		-melf_x86_64 -T$(CURDIR)/ldscripts/x86_64-elf.x -nostdlib -e_start -Ttext 0x200000
+OBJCOPY64 = 	$(BINPATH)/x86_64-elf-objcopy 
+OBJCOPYFLAG64 = -j .text -j .data -j .rodata -j .bss -S -O binary
+
 BSMERGE = 	$(BINPATH)/../../utils/bsmerge
 OSNAME := $(shell uname -s)
 ifeq ($(OSNAME), Ubuntu)
@@ -20,22 +29,25 @@ ifeq ($(OSNAME), FreeBSD)
 	MKFSARG = -L "INSTALL" -k 2 -i 1 -r 32 -c 1 -F 32
 endif
 
-S1BOOTLDRIMG =	tmp/s1boot.img
-S2BOOTLDRBIN =	tmp/s2boot.bin
-S2BOOTLDRELF =  tmp/s2boot.elf
-S2BOOTLDRRAW =  tmp/s2boot.elf.bin
-S2BOOTLDRIMG =  tmp/s2boot.elf.img
+S1BOOTLDRIMG =	  tmp/s1boot.img
+S2BOOTLDRBIN =	  tmp/s2boot.bin
+S2BOOTLDRELF =    tmp/s2boot.elf
+S2BOOTLDRRAW =    tmp/s2boot.elf.bin
+S2BOOTLDRIMG =    tmp/s2boot.elf.img
+S2BOOTLDRELF64 =  tmp/64bit/s2boot64.elf
+S2BOOTLDRRAW64 =  tmp/64bit/s2boot64.elf.bin
+S2BOOTLDRIMG64 =  tmp/64bit/s2boot64.elf.img
 FATIMG =	tmp/fat.img
 
 CSOURCES = $(wildcard src/*.c)
 CENTRYOBJECT = tmp/main.o
-COBJECTS = $(subst tmp/main.o, , $(notdir $(patsubst %.asm, %.o, $(CSOURCEFILES))))
+COBJECTS = $(subst $(CENTRYOBJECT), , $(patsubst src/%.c, tmp/%.o, $(CSOURCES)))
 ASMSOURCES = $(subst src/s1boot.asm src/s2boot.asm, , $(wildcard src/*.asm))
-ASMOBJECTS = $(notdir $(patsubst %.asm, %.o, $(ASMSOURCES)))
+ASMOBJECTS = $(patsubst src/%.asm, tmp/%.o, $(ASMSOURCES))
 
 FILES = \
 	tmp/* \
-	dependency.dep \
+	dep/* \
 	$(FATIMG) \
 	$(TARGET)
 
@@ -49,34 +61,64 @@ $(FATIMG) : $(TARGET)
 	#mcopy -i $@ $(S2BOOTLDRBIN) ::STARTUP.BIN
 	$(BSMERGE) $@ $(S1BOOTLDRIMG) 0 $(FATIMG)
 	$(BSMERGE) $@ $(S2BOOTLDRIMG) 1000 $@
-	cp -f $@ $<
+	$(BSMERGE) $@ $(S2BOOTLDRIMG64) 1A00 $@
+	mv -f $@ $<
 
-$(TARGET) : $(S1BOOTLDRIMG) $(S2BOOTLDRIMG)
+$(TARGET) : buildDirectoryStructure $(S1BOOTLDRIMG) $(S2BOOTLDRIMG) $(S2BOOTLDRIMG64)
 
-$(S2BOOTLDRELF) : $(CENTRYOBJECT) $(COBJECTS) $(ASMOBJECTS)
-	$(CC) -MM $(CSOURCES) > dependency.dep
-	$(LD) -o $@ $^
-
-tmp/%.o : src/%.asm
-	$(ASM) $(ASMFLAG) -felf32 $< -o $@
-
-$(S2BOOTLDRBIN) : $(patsubst tmp/%.bin, src/%.asm, $(S2BOOTLDRBIN))
-	$(ASM) $(ASMFLAG) -o $@ $<
-
+# BOOTLDR16/32
 $(S1BOOTLDRIMG) : $(patsubst tmp/%.img, src/%.asm, $(S1BOOTLDRIMG))
-	$(ASM) $(ASMFLAG) -o $@ $<
+	$(AS) $(AMFLAG) -o $@ $<
 
 $(S2BOOTLDRIMG) : $(S2BOOTLDRBIN) $(S2BOOTLDRELF)
 	$(OBJCOPY) $(OBJCOPYFLAG) $(S2BOOTLDRELF) $(S2BOOTLDRRAW)
 	cat $(S2BOOTLDRBIN) $(S2BOOTLDRRAW) > $@
 
+$(S2BOOTLDRELF) : $(CENTRYOBJECT) $(COBJECTS) $(ASMOBJECTS)
+	$(CC) $(CCFLAG) -MM $(CSOURCES) > dep/dependency.dep
+	$(LD) $(LDFLAG) -o $@ $^
+	
+$(S2BOOTLDRBIN) : $(patsubst tmp/%.bin, src/%.asm, $(S2BOOTLDRBIN))
+	$(AS) $(ASFLAG) -o $@ $<
+
+tmp/%.o : src/%.asm
+	$(AS) $(ASFLAG) -felf32 $< -o $@
+
 tmp/%.o : src/%.c
-	$(CC) -c $< -o $@
+	$(CC) $(CCFLAG) -c $< -o $@
+	
+# BOOTLDR64
+CSOURCES64 = $(wildcard src/64bit/*.c)
+COBJECTS64 = $(patsubst src/64bit/%.c, tmp/64bit/%.o, $(CSOURCES64))
+ASMENTRYOBJECT64 = tmp/64bit/s2boot64.o
+ASMSOURCES64 = $(wildcard src/64bit/*.asm)
+ASMOBJECTS64 = $(subst $(ASMENTRYOBJECT64), , $(patsubst src/64bit/%.asm, tmp/64bit/%.o, $(ASMSOURCES64)))
+
+$(S2BOOTLDRIMG64) : $(S2BOOTLDRELF64)
+	$(OBJCOPY64) $(OBJCOPYFLAG64) $^ $@
+
+$(S2BOOTLDRELF64) : $(ASMENTRYOBJECT64) $(COBJECTS64) $(ASMOBJECTS64)
+	$(CC64) $(CCFLAG64) -MM $(CSOURCES64) > dep/dependency64.dep
+	$(LD64) $(LDFLAG64) -o $@ $^
+
+tmp/64bit/%.o : src/64bit/%.asm
+	$(AS) $(ASFLAG64) -felf64 $< -o $@
+
+tmp/64bit/%.o : src/64bit/%.c
+	$(CC64) $(CCFLAG64) -c $< -o $@
+
+
+buildDirectoryStructure : 
+	mkdir -p tmp
+	mkdir -p tmp/64bit
+	mkdir -p dep
 
 clean :
 	rm -rf $(FILES)
-	mkdir -p tmp
 
-ifeq (dependency.dep, $(wildcard dependency.dep))
-include dependency.dep
+ifeq (dep/dependency.dep, $(wildcard dep/dependency.dep))
+include dep/dependency.dep
+endif
+ifeq (dep/dependency64.dep, $(wildcard dep/dependency64.dep))
+include dep/dependency64.dep
 endif

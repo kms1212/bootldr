@@ -1,13 +1,14 @@
-export PREFIX="$PWD/cross"
-export TARGET=i686-elf
-export PATH="$PREFIX/bin:$PATH"
-
 BUVER="2.35"
 GCCVER="10.2.0"
-
+PREFIX="$PWD/cross"
 SH_HOME="$PWD"
 
 cd $SH_HOME
+
+if [ -d "cross" ]; then
+	echo "Compiled binaries are already exists."
+	exit 0
+fi
 
 # Configuring packages for building
 

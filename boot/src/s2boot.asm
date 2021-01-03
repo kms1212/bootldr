@@ -16,6 +16,10 @@ START:
 	mov si, stringStage2
 	call PRINT
 	
+	call ACTA20
+	mov si, stringA20
+	call PRINT
+
 	call CLEAR
 	
 	cli
@@ -24,7 +28,7 @@ START:
 	mov eax, 0x4000003B
 	mov cr0, eax
 
-	jmp dword 0x08:(PROTMODE - $$ + 0x7E00)
+	jmp dword 0x18:(PROTMODE - $$ + 0x7E00)
 CLEAR:
 	pusha
 
@@ -38,6 +42,20 @@ CLEAR:
 	mov dx, 0x184F
 	int 0x10
 	
+	popa
+	ret
+ACTA20:
+	pusha
+	mov ax, 0x2401
+	int 0x15
+	jc .ERR
+	jmp .END
+.ERR:
+	in al, 0x92
+	or al, 0x02
+	and al, 0xFE
+	out 0x92, al
+.END:
 	popa
 	ret
 PRINT:
@@ -57,7 +75,7 @@ PRINT:
 
 [BITS 32]
 PROTMODE:
-	mov ax, 0x10
+	mov ax, 0x20
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
@@ -73,7 +91,7 @@ PROTMODE:
 	call PRINT32
 	add esp, 12
 
-	jmp dword 0x08:0x8000
+	jmp dword 0x18:0x8000
 
 PRINT32:
 	pushad
@@ -115,8 +133,9 @@ PRINT32:
 	popad
 	ret
 
-stringStage2 : db 'Stage 2', 0x0D, 0x0A, 0x00
-stringProtModeSuccess : db 'Successfully switched to protected mode', 0x00
+stringStage2 : db 'STAGE 2 OK', 0x0D, 0x0A, 0x00
+stringA20 : db 'A20 OK', 0x0D, 0x0A, 0x00
+stringProtModeSuccess : db 'PROTECTED MODE OK', 0x00
 
 ALIGN 8, DB 0
 DW 0x0000
@@ -130,6 +149,20 @@ GDT:
 		DB 0x00
 		DB 0x00
 		DB 0x00
+		DB 0x00
+	CODEDESC64:
+		DW 0xFFFF
+		DW 0x0000
+		DB 0x00
+		DB 0x9A
+		DB 0xAF
+		DB 0x00
+	DATADESC64:
+		DW 0xFFFF
+		DW 0x0000
+		DB 0x00
+		DB 0x92
+		DB 0xAF
 		DB 0x00
 	CODEDESC:
 		DW 0xFFFF
