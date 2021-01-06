@@ -180,4 +180,5 @@ GDT:
 		DB 0x00
 GDTEND:
 
-times 512 - ($ - $$) db 0x0
+times 510 - ($ - $$) db 0x0
+dw 0x9955

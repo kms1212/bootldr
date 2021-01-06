@@ -1,5 +1,6 @@
+ROOTDIR =   ../../
 TARGET =	bootpart.img
-BINPATH =	../buildutils/cross/bin/
+BINPATH =	$(ROOTDIR)/buildutils/cross/bin/
 
 AS = 		nasm
 ASFLAG = 	-I${CURDIR}/src 
@@ -37,7 +38,8 @@ S2BOOTLDRIMG =    tmp/s2boot.elf.img
 S2BOOTLDRELF64 =  tmp/64bit/s2boot64.elf
 S2BOOTLDRRAW64 =  tmp/64bit/s2boot64.elf.bin
 S2BOOTLDRIMG64 =  tmp/64bit/s2boot64.elf.img
-FATIMG =	tmp/fat.img
+S3BOOTLDRBIN =    stage3/loader.bin
+FATIMG =	      tmp/fat.img
 
 CSOURCES = $(wildcard src/*.c)
 CENTRYOBJECT = tmp/main.o
@@ -50,21 +52,23 @@ FILES = \
 	dep/* \
 	$(FATIMG) \
 	$(TARGET)
+	
+DIRSTRUCT = \
+	tmp \
+	tmp/64bit \
+	dep
 
-all : $(TARGET)
+all : buildDirectoryStructure $(TARGET)
 
-mkimage : $(FATIMG)
-
-$(FATIMG) : $(TARGET)
-	dd if=/dev/zero of="$(FATIMG)" bs=1024 count=102400
+$(TARGET) : $(S1BOOTLDRIMG) $(S2BOOTLDRIMG) $(S2BOOTLDRIMG64) $(S3BOOTLDRBIN)
+	dd if=/dev/zero of="$(FATIMG)" bs=2048 count=51156
 	$(MKFSFAT) $(MKFSARG) "$(FATIMG)"
-	#mcopy -i $@ $(S2BOOTLDRBIN) ::STARTUP.BIN
-	$(BSMERGE) $@ $(S1BOOTLDRIMG) 0 $(FATIMG)
-	$(BSMERGE) $@ $(S2BOOTLDRIMG) 1000 $@
-	$(BSMERGE) $@ $(S2BOOTLDRIMG64) 1A00 $@
-	mv -f $@ $<
-
-$(TARGET) : buildDirectoryStructure $(S1BOOTLDRIMG) $(S2BOOTLDRIMG) $(S2BOOTLDRIMG64)
+	$(BSMERGE) $(FATIMG) $(S1BOOTLDRIMG) 0 $(FATIMG)
+	$(BSMERGE) $(FATIMG) $(S2BOOTLDRIMG) 1000 $(FATIMG)
+	$(BSMERGE) $(FATIMG) $(S2BOOTLDRIMG64) 1A00 $(FATIMG)
+	mmd -i $(FATIMG) ::BOOT
+	mcopy -i $(FATIMG) $(S3BOOTLDRBIN) ::BOOT/LOADER.BIN
+	mv -f $(FATIMG) $@
 
 # BOOTLDR16/32
 $(S1BOOTLDRIMG) : $(patsubst tmp/%.img, src/%.asm, $(S1BOOTLDRIMG))
@@ -106,15 +110,16 @@ tmp/64bit/%.o : src/64bit/%.asm
 
 tmp/64bit/%.o : src/64bit/%.c
 	$(CC64) $(CCFLAG64) -c $< -o $@
-
+	
+$(S3BOOTLDRBIN) : 
+	cd stage3 && $(MAKE) && cd ..
 
 buildDirectoryStructure : 
-	mkdir -p tmp
-	mkdir -p tmp/64bit
-	mkdir -p dep
+	mkdir -p $(DIRSTRUCT)
 
 clean :
 	rm -rf $(FILES)
+	cd stage3 && $(MAKE) clean && cd ..
 
 ifeq (dep/dependency.dep, $(wildcard dep/dependency.dep))
 include dep/dependency.dep

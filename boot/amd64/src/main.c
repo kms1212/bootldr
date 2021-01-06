@@ -19,7 +19,7 @@ void main(void)
 	initPageTable();
 	printString(26, 2, "OK");
 	
-	printString(0, 3, "CPU Vender : ");
+	printString(0, 3, "CPU Vendor : ");
 	DWORD eax, ebx, ecx, edx;
 	char vendorString[13] = { 0, };
 	getCPUID(0x00, &eax, &ebx, &ecx, &edx);

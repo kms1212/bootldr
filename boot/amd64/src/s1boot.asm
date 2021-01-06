@@ -55,6 +55,8 @@ MAIN:
 	mov ss, ax
 	mov sp, 0xFFFF
 	sti
+	
+	mov [ebpbPhysicalDriveNum], dl
 
 	mov si, stringBootStart
 	call PRINT
@@ -63,11 +65,14 @@ MAIN:
 	mov si, stringDriveInitComplete
 	call PRINT
 	
+	mov si, stringS2EntrySearching
+	call PRINT
+	call GETS2LOCATION
 
 	xor bx, bx
 	mov cx, 0x18
-	mov eax, 0x8
-	call READSECTORLBA
+	mov eax, [S2ImageLocation]
+	call READSECTOR
 	
 	jmp 0x07E0:0x0000
 	
@@ -82,6 +87,65 @@ RESETDRIVE:
 	jnz .RESET
 	popa
 	ret
+	
+GETS2LOCATION:
+	pusha
+	xor ecx, ecx
+.NEXT:
+	inc cx
+	push cx
+	
+	xor bx, bx
+	mov eax, ecx
+	mov cx, 0x01
+	call READSECTOR
+	
+	pop cx
+	cmp word [es:0x1FE], 0x9955
+	je .END
+	
+	cmp cx, 0xFFF5
+	je .NOTFOUND
+	
+	jmp .NEXT
+.END:
+	mov [S2ImageLocation], eax
+	popa
+	ret
+.NOTFOUND:
+	mov si, stringS2EntryNotFound
+	call PRINT
+	jmp $
+	
+READSECTOR:
+	pusha
+	mov ah, 0x41
+	mov dl, [ebpbPhysicalDriveNum]
+	mov bx, 0x55AA
+	int 0x13
+	jc .CHS
+.LBA:
+	popa
+	call READSECTORLBA
+	jmp .END
+.CHS:
+	popa
+	call READSECTORCHS
+	jmp .END
+.END:
+	ret
+	
+READSECTORCHS:
+	pusha
+.NEXT:
+	jmp .ERROR
+.END:
+	popa
+	ret
+.ERROR:
+	mov si, stringCHSStub
+	call PRINT
+	jmp $
 
 READSECTORLBA:
 	pusha
@@ -137,11 +201,14 @@ PRINT:
 	popa
 	ret
 
-DAP:
-
 stringBootStart : DB 'Bootstrap started', 0x0D, 0x0A, 0x00
 stringDriveInitComplete : DB 'Drive initialized', 0x0D, 0x0A, 0x00
 stringDriveError : DB 'Drive error', 0x0D, 0x0A, 0x00
+stringCHSStub : DB 'CHS reading is not implemented', 0x0D, 0x0A, 0x00
+stringS2EntrySearching : DB 'Searching bootloader...', 0x0D, 0x0A, 0x00
+stringS2EntryNotFound : DB 'Bootloader data not found', 0x0D, 0x0A, 0x00
 
-TIMES 510 - ( $ - $$ ) DB 0x00
-Dw 0xAA55
+TIMES 504 - ( $ - $$ ) DB 0x00
+S2ImageLocation : DD 0x00000000
+DW 0x1122
+DW 0xAA55

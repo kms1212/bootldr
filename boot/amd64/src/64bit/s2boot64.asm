@@ -39,7 +39,3 @@ x64:
 	
 	call main_64
 	jmp $
-
-jump_x64:
-	DQ x64
-	DW 0x08

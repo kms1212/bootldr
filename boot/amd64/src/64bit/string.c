@@ -1,17 +1,5 @@
 #include "string.h"
 
-void printString(int x, int y, const char* str)
-{
-	FBChar* charCurs = (FBChar*) 0xB8000;
-	int i;
-
-	charCurs += (y * 80) + x;
-	for (i = 0; str[i] != 0; i++)
-	{
-		charCurs[i].fb_ch = str[i];
-	}
-}
-
 char *strncpy(char *dest, const char *src, size_t count)
 {
         char *tmp = dest;
@@ -36,4 +24,36 @@ int strncmp(const char *s1, const char *s2, size_t count)
 	if(*s1 == *s2) return 0;
 	else if (*s1 > *s2) return 1;
 	return -1;
+}
+
+void itoa(uint8_t *buf, uint32_t base, uint32_t d)
+{
+	uint8_t *p = buf;
+	uint8_t *p1, *p2;
+	uint32_t ud = d;
+	uint32_t divisor = 10;
+	
+	if (base == 10 && d < 0) {
+		*p++ = '-';
+		buf++;
+		ud = -d;
+	}
+	else if (base == 16)
+		divisor = 16;
+	
+	do {
+		uint32_t remainder = ud % divisor;
+		*p++ = (remainder < 10) ? remainder + '0' : remainder + 'a' - 10;
+	} while (ud /= divisor);
+	
+	*p = 0;
+	p1 = buf;
+	p2 = p - 1;
+	while(p1 < p2) {
+		uint8_t tmp = *p1;
+		*p1 = *p2;
+		*p2 = tmp;
+		p1++;
+		p2--;
+	}
 }
